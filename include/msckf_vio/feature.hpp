@@ -217,9 +217,9 @@ void Feature::jacobian(const Eigen::Isometry3d& T_c0_ci,
 
   // Compute the weight based on the residual.
   double e = r.norm();
-  if (e <= optimization_config.huber_epsilon)
+  if (e <= optimization_config.huber_epsilon)//e<=0.01
     w = 1.0;
-  else
+  else //e>0.01, w = sqrt(0.02/e),误差大，权重变小
     w = std::sqrt(2.0*optimization_config.huber_epsilon / e);
 
   return;
@@ -247,8 +247,7 @@ void Feature::generateInitialGuess(
   return;
 }
 
-bool Feature::checkMotion(
-    const CamStateServer& cam_states) const {
+bool Feature::checkMotion( const CamStateServer& cam_states) const {
 
   const StateIDType& first_cam_id = observations.begin()->first;
   const StateIDType& last_cam_id = (--observations.end())->first;
@@ -270,6 +269,7 @@ bool Feature::checkMotion(
   Eigen::Vector3d feature_direction(
       observations.begin()->second(0),
       observations.begin()->second(1), 1.0);
+  //feature转化为单位基向量
   feature_direction = feature_direction / feature_direction.norm();
   feature_direction = first_cam_pose.linear()*feature_direction;
 
@@ -279,11 +279,13 @@ bool Feature::checkMotion(
   // speed up the checking process.
   Eigen::Vector3d translation = last_cam_pose.translation() -
     first_cam_pose.translation();
+  //平移向量在feature单位基向量的投影长度
   double parallel_translation =
     translation.transpose()*feature_direction;
+  //平移向量减去投影向量，生成垂直向量
   Eigen::Vector3d orthogonal_translation = translation -
     parallel_translation*feature_direction;
-
+  //orthogonal_translation.norm()很小，表示该feature点对应的位姿变化很小，无法用该点估计新位姿，所以去除
   if (orthogonal_translation.norm() >
       optimization_config.translation_threshold)
     return true;
@@ -306,19 +308,20 @@ bool Feature::initializePosition(
     if (cam_state_iter == cam_states.end()) continue;
 
     // Add the measurement.
-    measurements.push_back(m.second.head<2>());
-    measurements.push_back(m.second.tail<2>());
+    measurements.push_back(m.second.head<2>());//cam0
+    measurements.push_back(m.second.tail<2>());//cam1
 
     // This camera pose will take a vector from this camera frame
     // to the world frame.
     Eigen::Isometry3d cam0_pose;
+    //R_c_w
     cam0_pose.linear() = quaternionToRotation(
         cam_state_iter->second.orientation).transpose();
     cam0_pose.translation() = cam_state_iter->second.position;
 
     Eigen::Isometry3d cam1_pose;
-    cam1_pose = cam0_pose * CAMState::T_cam0_cam1.inverse();
-
+    cam1_pose = cam0_pose * CAMState::T_cam0_cam1.inverse();//T变换矩阵
+    //T_c_w
     cam_poses.push_back(cam0_pose);
     cam_poses.push_back(cam1_pose);
   }
@@ -328,12 +331,15 @@ bool Feature::initializePosition(
   // camera frame.
   Eigen::Isometry3d T_c0_w = cam_poses[0];
   for (auto& pose : cam_poses)
-    pose = pose.inverse() * T_c0_w;
+    //T_c0_ci
+    pose = pose.inverse() * T_c0_w; 
 
   // Generate initial guess
   Eigen::Vector3d initial_position(0.0, 0.0, 0.0);
+  //两帧三角化获得3D点坐标初值
   generateInitialGuess(cam_poses[cam_poses.size()-1], measurements[0],
       measurements[measurements.size()-1], initial_position);
+  //逆深度表示法
   Eigen::Vector3d solution(
       initial_position(0)/initial_position(2),
       initial_position(1)/initial_position(2),
@@ -402,16 +408,17 @@ bool Feature::initializePosition(
       }
 
     } while (inner_loop_cntr++ <
-        optimization_config.inner_loop_max_iteration && !is_cost_reduced);
+        optimization_config.inner_loop_max_iteration && !is_cost_reduced);//保证每一步迭代都能减少误差
 
     inner_loop_cntr = 0;
 
   } while (outer_loop_cntr++ <
       optimization_config.outer_loop_max_iteration &&
-      delta_norm > optimization_config.estimation_precision);
+      delta_norm > optimization_config.estimation_precision);//5e-7
 
   // Covert the feature position from inverse depth
   // representation to its 3d coordinate.
+  //基于相机cam0坐标系
   Eigen::Vector3d final_position(solution(0)/solution(2),
       solution(1)/solution(2), 1.0/solution(2));
 

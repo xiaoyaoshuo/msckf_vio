@@ -321,7 +321,7 @@ private:
   // Indicate if this is the first image message.
   bool is_first_img;
 
-  // ID for the next new feature.
+  // ID for the next new feature. 唯一标识符
   FeatureIDType next_feature_id;
 
   // Feature detector

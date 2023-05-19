@@ -1,0 +1,55 @@
+//终端运行
+source ./devel/setup.sh
+roslaunch msckf_vio msckf_vio_euroc.launch
+
+
+roslaunch msckf_vio msckf_vio_d435i.launch
+
+
+//终端运行
+source ./devel/setup.sh
+rosrun rviz rviz -d ./src/msckf_vio/rviz/rviz_euroc_config.rviz 
+
+//终端运行
+source ./devel/setup.sh
+rosbag play V1_01_easy.bag
+
+rosbag play MH_01_easy.bag
+
+//FLA
+roslaunch msckf_vio msckf_vio_fla.launch
+
+rosrun rviz rviz -d ./src/msckf_vio/rviz/rviz_fla_config.rviz
+
+rosbag play fla_wg_5.bag
+
+
+//test1
+roslaunch msckf_vio msckf_vio_test1.launch
+
+rosrun rviz rviz -d ./src/msckf_vio/rviz/rviz_euroc_config.rviz
+
+rosbag play test1.bag
+
+//test6
+roslaunch msckf_vio msckf_vio_test6.launch
+
+rosrun rviz rviz -d ./src/msckf_vio/rviz/rviz_euroc_config.rviz
+
+rosbag play test6_4imu.bag
+
+
+//计算频率
+rostopic hz /imu0
+rostopic hz /firefly_sbx/vio/odom
+//查看订阅
+rostopic list -v
+//查看rosbag信息
+rosbag info *.bag
+
+//编译
+catkin_make --pkg msckf_vio --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+
+
+

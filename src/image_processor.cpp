@@ -1249,7 +1249,7 @@ void ImageProcessor::publish() {
 
   vector<Point2f> curr_cam0_points_undistorted(0);
   vector<Point2f> curr_cam1_points_undistorted(0);
-
+  //输出数据为归一化平面坐标
   undistortPoints(
       curr_cam0_points, cam0_intrinsics, cam0_distortion_model,
       cam0_distortion_coeffs, curr_cam0_points_undistorted);
